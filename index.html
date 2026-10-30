@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#061110">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="Primal Isle — sobrevivência pré-histórica em 3D para celular e tablet. Colete, crie, domestique um parassauro e sobreviva à noite.">
+<title>Primal Isle — Sobrevivência Pré-Histórica</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23061110'/%3E%3Cpath d='M14 46 32 12l18 34-18-9z' fill='%23d5a94f'/%3E%3C/svg%3E">
+<link rel="preload" href="assets/fonts/chakra-500.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/cinzel-700.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <canvas id="scene" aria-label="Mundo 3D da ilha"></canvas>
+
+  <div id="fx-vignette" aria-hidden="true"></div>
+  <div id="fx-grain" aria-hidden="true"></div>
+  <div id="fx-damage" aria-hidden="true"></div>
+  <div id="fx-flash" aria-hidden="true"></div>
+
+  <!-- ============ HUD ============ -->
+  <div id="hud" class="hidden">
+    <div id="xp-strip"><div id="xp-fill"></div></div>
+
+    <section class="status-card glass" aria-label="Status do sobrevivente">
+      <div class="status-head">
+        <div class="level-badge"><span id="level-num">1</span><small>NÍVEL</small></div>
+        <div class="who">
+          <strong>SOBREVIVENTE</strong>
+          <span id="status-sub">Ilha desconhecida · Dia 1</span>
+        </div>
+        <div class="xp-mini"><span id="xp-label">0 / 100 XP</span></div>
+      </div>
+      <div class="bars">
+        <div class="bar-row hp"><span class="bar-ico" aria-hidden="true">❤</span><div class="bar"><i id="bar-health"></i></div><em id="num-health">100</em></div>
+        <div class="bar-row stam"><span class="bar-ico" aria-hidden="true">⚡</span><div class="bar"><i id="bar-stamina"></i></div><em id="num-stamina">100</em></div>
+        <div class="bar-row food"><span class="bar-ico" aria-hidden="true">🍖</span><div class="bar"><i id="bar-food"></i></div><em id="num-food">100</em></div>
+        <div class="bar-row water"><span class="bar-ico" aria-hidden="true">💧</span><div class="bar"><i id="bar-water"></i></div><em id="num-water">100</em></div>
+      </div>
+      <div class="quest">
+        <span class="quest-tag">OBJETIVO</span>
+        <span id="quest-text">Colete madeira e pedra na praia.</span>
+      </div>
+    </section>
+
+    <div class="top-mid">
+      <div id="clock">DIA 1 <b>06:00</b></div>
+      <div id="weather"><span id="weather-ico">☀</span> <span id="weather-text">ENSOLARADO</span></div>
+    </div>
+
+    <div class="top-right">
+      <div id="minimap-wrap" title="Mapa da ilha">
+        <canvas id="minimap" width="220" height="220"></canvas>
+        <span class="north">N</span>
+        <div class="map-ring" aria-hidden="true"></div>
+      </div>
+      <button id="btn-pause" class="icon-btn" aria-label="Abrir menu" title="Menu (Esc)">☰</button>
+    </div>
+
+    <div id="target-label" class="hidden" aria-live="polite">
+      <span id="target-name">Palmeira</span>
+      <small id="target-hint">Segure para coletar</small>
+    </div>
+
+    <div id="hotbar" role="toolbar" aria-label="Itens rápidos"></div>
+
+    <div id="joy-zone" aria-hidden="true"></div>
+    <div id="joystick" class="hidden" aria-hidden="true">
+      <div class="joy-ring"></div>
+      <div class="joy-knob"></div>
+    </div>
+
+    <div id="actions">
+      <button id="btn-sprint" class="act small" aria-label="Correr" aria-pressed="false">⚡<span>CORRER</span></button>
+      <button id="btn-jump" class="act small" aria-label="Pular">⤒<span>SALTAR</span></button>
+      <button id="btn-bag" class="act small" aria-label="Mochila e criação">🎒<span>MOCHILA</span></button>
+      <button id="btn-action" class="act primary" aria-label="Ação contextual">
+        <b id="action-ico">✊</b><span id="action-label">COLETAR</span>
+      </button>
+    </div>
+
+    <div id="toasts" aria-live="polite"></div>
+    <div id="floating-layer" aria-hidden="true"></div>
+    <div id="crosshair" aria-hidden="true"></div>
+    <div id="desktop-hint" class="hidden">WASD mover · mouse olhar · E coletar · C criar · Shift correr</div>
+    <div id="mounted-tag" class="hidden">🐾 PARASSAURO</div>
+  </div>
+
+  <!-- ============ MENU ============ -->
+  <section id="menu" class="screen">
+    <div class="menu-shade" aria-hidden="true"></div>
+    <div class="menu-topline">
+      <span>EXPEDIÇÃO 01</span><span class="dot"></span><span>ILHA DESCONHECIDA</span>
+    </div>
+
+    <div class="menu-wrap">
+      <div class="logo-block">
+        <div class="emblem" aria-hidden="true">
+          <svg viewBox="0 0 120 120">
+            <defs>
+              <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#f6dfa8"/><stop offset=".5" stop-color="#e3b96f"/><stop offset="1" stop-color="#8e5c27"/>
+              </linearGradient>
+            </defs>
+            <path d="M60 4 112 60 60 116 8 60Z" fill="none" stroke="url(#lg)" stroke-width="2"/>
+            <path d="M60 14 102 60 60 106 18 60Z" fill="none" stroke="url(#lg)" stroke-width=".7" opacity=".55"/>
+            <g stroke="url(#lg)" stroke-width="5" stroke-linecap="round">
+              <path d="M36 41 50 76"/><path d="M54 32 68 72"/><path d="M72 38 84 70"/>
+            </g>
+            <circle cx="60" cy="60" r="3" fill="#f3d79c" opacity=".9"/>
+          </svg>
+        </div>
+        <h1>PRIMAL <span>ISLE</span></h1>
+        <p class="tagline">SOBREVIVA · DOMESTIQUE · EVOLUA</p>
+        <p class="menu-lore">Uma ilha. Predadores. Um parasauro que ainda não confia em você.</p>
+      </div>
+
+      <div class="menu-actions">
+        <button id="btn-continue" class="menu-btn primary hidden">
+          <b>CONTINUAR EXPEDIÇÃO</b><small id="continue-meta">Dia 1 · Nível 1</small>
+        </button>
+        <button id="btn-new" class="menu-btn primary">
+          <b>NOVO JOGO</b><small>Começar do zero na praia</small>
+        </button>
+        <button id="btn-settings" class="menu-btn ghost">AJUSTES &amp; CONTROLES</button>
+      </div>
+
+      <div class="menu-foot">
+        <span id="device-hint">📱 Direcional para andar · arraste para olhar</span>
+        <span class="version">BUILD 1.0 · TRÊS BIOMAS · SEM SALVAÇÃO AUTOMÁTICA? TEM SIM.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PAUSE / SETTINGS ============ -->
+  <section id="pause" class="screen overlay hidden" aria-hidden="true">
+    <div class="sheet settings-sheet">
+      <header class="sheet-head">
+        <div>
+          <span class="eyebrow">SISTEMA</span>
+          <h2>PAUSA</h2>
+        </div>
+        <button class="close-btn" id="btn-resume" aria-label="Fechar menu">✕</button>
+      </header>
+
+      <div class="settings-grid">
+        <div class="setting-block">
+          <h3>CONTROLES</h3>
+          <label class="range-row" for="set-sens">
+            <span>Sensibilidade do olhar</span>
+            <output id="sens-out">1.0×</output>
+            <input id="set-sens" type="range" min="0.4" max="2" step="0.1" value="1">
+          </label>
+          <div class="toggle-row">
+            <div>
+              <strong>Inclinação (giroscópio)</strong>
+              <small>Olhe inclinando o celular. No iOS pediremos permissão de movimento.</small>
+            </div>
+            <button id="btn-tilt" class="toggle" aria-pressed="false"><i></i><span>OFF</span></button>
+          </div>
+          <button id="btn-calibrate" class="mini-btn" disabled>CENTRALIZAR INCLINAÇÃO</button>
+          <p class="fineprint" id="tilt-note">A inclinação é opcional e fica desligada por padrão.</p>
+        </div>
+
+        <div class="setting-block">
+          <h3>EXPERIÊNCIA</h3>
+          <div class="toggle-row">
+            <div><strong>Som ambiente e efeitos</strong><small>Vento, passos, rugidos e fogueira.</small></div>
+            <button id="btn-sound" class="toggle on" aria-pressed="true"><i></i><span>ON</span></button>
+          </div>
+          <label class="select-row" for="set-quality">
+            <span>Qualidade gráfica</span>
+            <select id="set-quality">
+              <option value="auto" selected>Automática</option>
+              <option value="high">Alta</option>
+              <option value="medium">Média</option>
+              <option value="low">Baixa</option>
+            </select>
+          </label>
+          <div class="toggle-row">
+            <div><strong>Vibração</strong><small>Retorno tátil em coletas e ataques (Android).</small></div>
+            <button id="btn-haptic" class="toggle on" aria-pressed="true"><i></i><span>ON</span></button>
+          </div>
+          <div class="keyguide">
+            <span><kbd>WASD</kbd> mover</span><span><kbd>E</kbd> ação</span><span><kbd>1–8</kbd> atalhos</span><span><kbd>C</kbd> criar</span><span><kbd>ESC</kbd> pausa</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sheet-actions">
+        <button id="btn-resume-2" class="menu-btn primary"><b>VOLTAR AO JOGO</b></button>
+        <button id="btn-title" class="menu-btn ghost"><b>SAIR PARA O MENU</b></button>
+        <button id="btn-wipe" class="menu-btn danger"><b>APAGAR PROGRESSO</b></button>
+      </div>
+      <p class="save-note" id="save-note">O jogo salva automaticamente a cada 20 segundos.</p>
+    </div>
+  </section>
+
+  <!-- ============ CRAFT / INVENTORY ============ -->
+  <section id="craft" class="screen overlay hidden" aria-hidden="true">
+    <div class="sheet craft-sheet">
+      <header class="sheet-head">
+        <div>
+          <span class="eyebrow">SOBREVIVENTE</span>
+          <h2>MOCHILA &amp; CRIAÇÃO</h2>
+        </div>
+        <button class="close-btn" id="btn-craft-close" aria-label="Fechar mochila">✕</button>
+      </header>
+      <div class="inv-strip" id="inv-strip"></div>
+      <div class="craft-cols">
+        <div class="craft-col">
+          <div class="col-head"><h3>FERRAMENTAS &amp; UTILIDADES</h3><span id="craft-count"></span></div>
+          <div id="recipe-list" class="recipe-list"></div>
+        </div>
+        <aside class="craft-aside">
+          <h3>DIÁRIO DE CAMPO</h3>
+          <div class="diary">
+            <p><b>Dica 1.</b> Bata em palmeiras com as mãos até juntar madeira e fibra. Rochas dão pedra e sílex.</p>
+            <p><b>Dica 2.</b> Uma fogueira cozinha carne e recupera sua vida. À noite, ela também espanta o medo — mas não o raptor.</p>
+            <p><b>Dica 3.</b> Frutas silvestres alimentam e ajudam a domesticar um parassauro. Depois de domesticado, crie uma sela para montar.</p>
+          </div>
+          <div class="tame-card" id="tame-card">
+            <span class="tame-ico">🦕</span>
+            <div><strong>PARASSAURO</strong><small id="tame-status">Ainda selvagem. Ofertas de frutas podem conquistá-lo.</small></div>
+          </div>
+          <div class="inv-tip">Toque em um item para equipar. Recursos são consumidos ao criar.</div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DEATH ============ -->
+  <section id="death" class="screen overlay hidden" aria-hidden="true">
+    <div class="death-wrap">
+      <span class="eyebrow">FIM DA EXPEDIÇÃO</span>
+      <h2>VOCÊ MORREU</h2>
+      <p id="death-reason">O raptor foi mais rápido.</p>
+      <div class="death-stats">
+        <div><span>DIA</span><b id="death-day">1</b></div>
+        <div><span>NÍVEL</span><b id="death-level">1</b></div>
+        <div><span>RECURSOS PERDIDOS</span><b id="death-lost">—</b></div>
+      </div>
+      <button id="btn-respawn" class="menu-btn primary"><b>RENASCER NA PRAIA</b><small>Você mantém suas ferramentas</small></button>
+    </div>
+  </section>
+
+  <!-- ============ INTRO CARD ============ -->
+  <div id="intro-card" class="hidden" aria-hidden="true">
+    <span class="eyebrow">DIA <b id="intro-day">1</b></span>
+    <h2>SOBREVIVA</h2>
+    <p id="intro-sub">A ilha não perdoa. Mas ela recompensa.</p>
+  </div>
+
+  <!-- ============ BOOT ============ -->
+  <section id="boot" class="screen">
+    <div class="boot-inner">
+      <div class="boot-mark">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <path d="M60 4 112 60 60 116 8 60Z" fill="none" stroke="#e3b96f" stroke-width="2"/>
+          <g stroke="#e3b96f" stroke-width="5" stroke-linecap="round"><path d="M36 41 50 76"/><path d="M54 32 68 72"/><path d="M72 38 84 70"/></g>
+        </svg>
+      </div>
+      <h1>PRIMAL <span>ISLE</span></h1>
+      <div class="boot-bar"><i></i></div>
+      <p id="boot-text">GERANDO A ILHA…</p>
+    </div>
+  </section>
+
+  <div id="rotate-note">Gire o dispositivo para aproveitar melhor a ilha <span>↻</span></div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/data.js"></script>
+<script src="js/world.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
