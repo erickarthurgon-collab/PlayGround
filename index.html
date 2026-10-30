@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#071216">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="PRIMAL ISLE — um jogo de sobrevivência em ilha com dinossauros, controles de toque e inclinação. Feito para celular, tablet e desktop.">
+<title>PRIMAL ISLE — Survival</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b2024'/%3E%3Cpath d='M14 46L26 18l9 14 5-7 10 21z' fill='%235ff2d0'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+  { "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+</head>
+<body>
+<canvas id="game" aria-label="Mundo de PRIMAL ISLE"></canvas>
+<div id="vignette"></div>
+
+<!-- ======================= HUD ======================= -->
+<div id="hud">
+  <div class="hud-tl">
+    <div class="brandline">
+      <span class="brand-diamond"></span>
+      <span class="brand-name">PRIMAL ISLE</span>
+      <span class="brand-sep"></span>
+      <span id="day-label">DIA 1</span>
+    </div>
+
+    <div class="vitals-card">
+      <div class="vital" data-vital="health">
+        <div class="vital-head"><span class="vital-name"><svg class="icon"><use href="#i-heart"/></svg>VIDA</span><span class="vital-num" id="v-health">100</span></div>
+        <div class="vital-track"><i id="b-health"></i></div>
+      </div>
+      <div class="vital" data-vital="stamina">
+        <div class="vital-head"><span class="vital-name"><svg class="icon"><use href="#i-bolt"/></svg>ENERGIA</span><span class="vital-num" id="v-stamina">100</span></div>
+        <div class="vital-track"><i id="b-stamina"></i></div>
+      </div>
+      <div class="vital" data-vital="food">
+        <div class="vital-head"><span class="vital-name"><svg class="icon"><use href="#i-food"/></svg>FOME</span><span class="vital-num" id="v-food">100</span></div>
+        <div class="vital-track"><i id="b-food"></i></div>
+      </div>
+      <div class="vital" data-vital="water">
+        <div class="vital-head"><span class="vital-name"><svg class="icon"><use href="#i-water"/></svg>SEDE</span><span class="vital-num" id="v-water">100</span></div>
+        <div class="vital-track"><i id="b-water"></i></div>
+      </div>
+      <div class="xp-row"><span>NV <b id="level-label">1</b></span><div class="xp-track"><i id="b-xp"></i></div><span id="xp-label">0 / 100 XP</span></div>
+    </div>
+
+    <div class="objective-card" id="objective-card">
+      <div class="objective-mark"></div>
+      <div class="objective-copy">
+        <small>OBJETIVO ATUAL</small>
+        <span id="objective-text">Colete 10 de madeira</span>
+      </div>
+      <span id="objective-progress">0/10</span>
+    </div>
+  </div>
+
+  <div class="hud-tr">
+    <div class="climate">
+      <div class="clock-time" id="clock-time">09:20</div>
+      <div class="clock-sub"><span id="clock-temp">27°C</span><span class="dot-sep"></span><span id="clock-region">PRAIA SUL</span></div>
+    </div>
+    <div class="minimap-wrap">
+      <div class="minimap-ring">
+        <canvas id="minimap" width="224" height="224"></canvas>
+        <div class="minimap-n">N</div>
+        <div class="minimap-scan"></div>
+      </div>
+      <div class="minimap-coords" id="coords">04 · 78</div>
+    </div>
+    <div class="top-actions">
+      <button class="icon-btn" id="btn-sound" aria-label="Alternar som"><svg class="icon"><use href="#i-sound"/></svg></button>
+      <button class="icon-btn" id="btn-settings" aria-label="Configurações"><svg class="icon"><use href="#i-gear"/></svg></button>
+    </div>
+  </div>
+
+  <div id="toasts"></div>
+
+  <div id="target-panel" class="target-panel hidden">
+    <div class="target-row"><span id="target-name">RAPTOR</span><span class="target-lv" id="target-level">Nv 12</span></div>
+    <div class="target-track"><i id="target-fill"></i></div>
+    <div class="target-sub" id="target-sub">CARNÍVORO · AGRESSIVO</div>
+  </div>
+
+  <div id="prompt" class="prompt hidden"><span class="prompt-key" id="prompt-key">AÇÃO</span><span id="prompt-text">Coletar madeira</span></div>
+
+  <div id="hotbar" class="hotbar">
+    <button class="slot selected" data-slot="0" data-item="axe">
+      <svg class="icon"><use href="#i-axe"/></svg><span class="slot-name">MACHADO</span><span class="slot-count" id="count-axe">∞</span><span class="slot-key">1</span>
+    </button>
+    <button class="slot locked" data-slot="1" data-item="spear">
+      <svg class="icon"><use href="#i-spear"/></svg><span class="slot-name">LANÇA</span><span class="slot-count" id="count-spear">0</span><span class="slot-key">2</span>
+    </button>
+    <button class="slot" data-slot="2" data-item="berries">
+      <svg class="icon"><use href="#i-berry"/></svg><span class="slot-name">FRUTAS</span><span class="slot-count" id="count-berries">3</span><span class="slot-key">3</span>
+    </button>
+    <button class="slot" data-slot="3" data-item="cookedMeat">
+      <svg class="icon"><use href="#i-food"/></svg><span class="slot-name">CARNE</span><span class="slot-count" id="count-cookedMeat">0</span><span class="slot-key">4</span>
+    </button>
+  </div>
+
+  <div id="joystick" class="joystick" aria-label="Joystick de movimento">
+    <div class="joystick-arrows"><i></i><i></i><i></i><i></i></div>
+    <div class="joystick-knob" id="joystick-knob"><span></span></div>
+  </div>
+
+  <div class="right-stack">
+    <button class="round-btn small" id="btn-craft" aria-label="Abrir criação"><svg class="icon"><use href="#i-hammer"/></svg><span>CRIAR</span></button>
+    <button class="round-btn small" id="btn-bag" aria-label="Abrir mochila"><svg class="icon"><use href="#i-bag"/></svg><span>MOCHILA</span></button>
+    <button class="round-btn small" id="btn-camera" aria-label="Alternar câmera"><svg class="icon"><use href="#i-camera"/></svg><span>CÂMERA</span></button>
+    <button class="round-btn small" id="btn-sprint" aria-label="Correr"><svg class="icon"><use href="#i-run"/></svg><span>CORRER</span></button>
+    <button class="round-btn" id="btn-jump" aria-label="Pular"><svg class="icon"><use href="#i-jump"/></svg><span>PULAR</span></button>
+    <button class="action-btn" id="btn-action" aria-label="Ação principal">
+      <svg class="icon" id="action-icon"><use href="#i-axe"/></svg>
+      <span id="action-label">COLETAR</span>
+    </button>
+  </div>
+
+  <div class="desktop-hint"><b>WASD</b> mover <b>SHIFT</b> correr <b>ESPAÇO</b> pular <b>E</b> ação <b>I</b> mochila <b>C</b> criar <b>V</b> câmera <b>ESC</b> pausa</div>
+
+  <div id="damage-flash"></div>
+  <div id="action-ripple"></div>
+</div>
+
+<!-- ======================= START ======================= -->
+<div id="start-screen" class="start-screen">
+  <div class="start-bg-grain"></div>
+  <div class="start-inner">
+    <div class="start-eyebrow"><span></span>ILHA PRIMITIVA · SOBREVIVÊNCIA<span></span></div>
+    <h1 class="game-title"><span class="t1">PRIMAL</span><span class="t2">ISLE</span></h1>
+    <p class="tagline">A ilha não perdoa. Domestique dinossauros, colete recursos e construa seu legado antes que a noite chegue.</p>
+    <div class="feature-row">
+      <span><i></i>MUNDO ABERTO</span>
+      <span><i></i>DINOSSAUROS</span>
+      <span><i></i>DOMESTICAÇÃO</span>
+    </div>
+    <button id="btn-play" class="play-btn" aria-label="Play">
+      <span class="play-icon"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l10-6.5z" fill="currentColor"/></svg></span>
+      <span class="play-copy"><b>PLAY</b><small>INICIAR SOBREVIVÊNCIA</small></span>
+      <span class="play-arrow">→</span>
+    </button>
+    <div class="start-settings">
+      <label class="switch-row" for="tilt-toggle">
+        <span class="switch"><input type="checkbox" id="tilt-toggle"><i></i></span>
+        <span class="switch-copy"><b>INCLINAÇÃO</b><small>Olhar com o acelerômetro</small></span>
+      </label>
+      <button id="btn-calibrate" class="calibrate-btn hidden">CALIBRAR</button>
+    </div>
+    <div class="start-hint">Arraste a tela para olhar · Joystick para mover · No iOS, a inclinação pede permissão ao ativar</div>
+  </div>
+  <div class="start-footer">
+    <span>PRIMAL ISLE · v1.0</span>
+    <span class="footer-mid">TOQUE · TECLADO · INCLINAÇÃO</span>
+    <span>MELHOR EXPERIÊNCIA COM SOM</span>
+  </div>
+</div>
+
+<!-- ======================= PANEL ======================= -->
+<div id="panel" class="panel hidden" role="dialog" aria-modal="true" aria-label="Mochila e criação">
+  <div class="panel-card">
+    <div class="panel-head">
+      <div class="panel-title">
+        <small>SURVIVOR INTERFACE</small>
+        <h2>Mochila <span>&</span> Criação</h2>
+      </div>
+      <button class="close-btn" id="btn-close-panel" aria-label="Fechar"><svg class="icon"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="panel-tabs">
+      <button class="tab active" data-tab="all">TUDO</button>
+      <button class="tab" data-tab="craft">CRIAÇÃO</button>
+      <button class="tab" data-tab="guide">GUIA</button>
+    </div>
+    <div class="panel-body">
+      <section class="inv-col">
+        <div class="col-head"><h3>RECURSOS</h3><span id="weight-label">0 / 100 kg</span></div>
+        <div class="inv-grid" id="inv-grid"></div>
+        <div class="inv-note" id="inv-note">Colete recursos com o machado à mão.</div>
+      </section>
+      <section class="craft-col">
+        <div class="col-head"><h3>BANCADA DE CRIAÇÃO</h3><span>NÍVEL 1</span></div>
+        <div id="recipe-list"></div>
+      </section>
+    </div>
+    <div class="panel-foot">
+      <span><kbd>I</kbd> fechar</span>
+      <span class="foot-note">A ilha continua girando enquanto você abre a mochila.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= PAUSE ======================= -->
+<div id="pause" class="panel hidden" role="dialog" aria-modal="true" aria-label="Pausa">
+  <div class="pause-card">
+    <small>SESSÃO PAUSADA</small>
+    <h2>PRIMAL ISLE</h2>
+    <div class="pause-stats">
+      <div><span id="pause-day">DIA 1</span><small>TEMPO NA ILHA</small></div>
+      <div><span id="pause-level">NV 1</span><small>SOBREVIVENTE</small></div>
+      <div><span id="pause-kills">0</span><small>ABATES</small></div>
+    </div>
+    <button class="play-btn compact" id="btn-resume"><span class="play-copy"><b>CONTINUAR</b><small>VOLTAR À ILHA</small></span></button>
+    <button class="ghost-wide" id="btn-restart">REINICIAR ILHA</button>
+    <div class="pause-settings">
+      <label class="switch-row" for="tilt-toggle-pause">
+        <span class="switch"><input type="checkbox" id="tilt-toggle-pause"><i></i></span>
+        <span class="switch-copy"><b>INCLINAÇÃO</b><small>Olhar com o acelerômetro</small></span>
+      </label>
+      <button id="btn-calibrate-pause" class="calibrate-btn hidden">CALIBRAR</button>
+    </div>
+    <p class="pause-tip">Dica: frutas saciam a sede. Carne assada restaura vida.</p>
+  </div>
+</div>
+
+<!-- ======================= DEATH ======================= -->
+<div id="death" class="death hidden">
+  <div class="death-copy">
+    <small>A ILHA RECLAMA SEUS MORTOS</small>
+    <h2>VOCÊ MORREU</h2>
+    <p id="death-cause">Um raptor foi mais rápido.</p>
+    <button class="play-btn compact" id="btn-respawn"><span class="play-copy"><b>RENASCER</b><small>VOLTAR À PRAIA</small></span></button>
+  </div>
+</div>
+
+<!-- ======================= SVG ICONS ======================= -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20.2s-7.4-4.5-7.4-9.3A4.1 4.1 0 0 1 12 8.2a4.1 4.1 0 0 1 7.4 2.7c0 4.8-7.4 9.3-7.4 9.3Z" fill="currentColor"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.4 2.5 5 13.3h5.2l-.8 8.2 8.6-11h-5.3z" fill="currentColor"/></symbol>
+    <symbol id="i-food" viewBox="0 0 24 24"><path d="M15.8 3.5c-2.3.2-4 2-4.2 4.3-.1 1.3.3 2.5 1 3.4l-7 7.1a1.9 1.9 0 0 0 2.7 2.7l7.1-7c1 .7 2.2 1 3.4.9 2.3-.2 4.1-1.9 4.3-4.2-1.4.8-3 .8-4.3 0-1.1-.7-1.8-1.9-2-3.2-.2-1.3 0-2.7-.9-4Z" fill="currentColor"/></symbol>
+    <symbol id="i-water" viewBox="0 0 24 24"><path d="M12 2.7S5.5 10 5.5 14.4a6.5 6.5 0 0 0 13 0C18.5 10 12 2.7 12 2.7Z" fill="currentColor"/></symbol>
+    <symbol id="i-wood" viewBox="0 0 24 24"><path d="m4 17 8.5-8.5M6.5 20 20 6.5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M3.7 15.2c1.3-1.7 4.3-1.8 5.7.2 1.1 1.6.2 3.9-1.7 4.3-2.2.5-4.1-1.3-4-3.5Z" fill="currentColor"/><circle cx="6.7" cy="17.5" r="1.2" fill="#0b2024"/></symbol>
+    <symbol id="i-stone" viewBox="0 0 24 24"><path d="m4 15 2.8-7.2 7-2.6 6.2 4.9-1.7 7.4-7.3 2.1z" fill="currentColor"/><path d="m8.5 8 3 5.5 6.5-3.4M11.5 13.5 10 19" stroke="#0b2024" stroke-width="1.2" fill="none" opacity=".35"/></symbol>
+    <symbol id="i-fiber" viewBox="0 0 24 24"><path d="M4.5 20C4 11 9 4 20 3c.3 9-6 16-15.5 17Z" fill="currentColor"/><path d="M6 18c3-5 7-8 12-11" stroke="#0b2024" stroke-width="1.3" fill="none" opacity=".45"/></symbol>
+    <symbol id="i-berry" viewBox="0 0 24 24"><circle cx="9" cy="14" r="4.6" fill="currentColor"/><circle cx="15.5" cy="16.5" r="3.7" fill="currentColor" opacity=".82"/><circle cx="14.3" cy="9.2" r="3.4" fill="currentColor" opacity=".9"/><path d="M12.5 5.8c.2-1.6 1.4-2.9 3-3.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-meat" viewBox="0 0 24 24"><path d="M3.3 8.2c2.6-3.7 7.8-3.4 10.4-.2 2.3-1.8 5.4-2.2 7.2-.5 2 2 1.5 5.2-.7 7.2-2.1 1.9-5.3 1.4-7.2-.8-2.4 2.6-7 3.2-9.7.5-2-2-1.8-5.1 0-6.2Z" fill="currentColor"/><circle cx="18" cy="7" r="2.1" fill="#f5e6c8"/></symbol>
+    <symbol id="i-hide" viewBox="0 0 24 24"><path d="M7 3c1.8 1 3.4 1 5 0 2 1 3.6 1 5 0-.2 2 1 3.2 2 4.3-1 1.5-.8 2.8.2 4.2-1.3 1.3-1.6 2.6-1.2 4.2-2 1.2-2.9 2.6-3 4.3-2.2-.6-4-.6-6 0-.1-1.7-1-3.1-3-4.3.4-1.6.1-2.9-1.2-4.2 1-1.4 1.2-2.7.2-4.2C6 5.2 7.2 4 7 3Z" fill="currentColor" opacity=".9"/></symbol>
+    <symbol id="i-flint" viewBox="0 0 24 24"><path d="m13 2 7 4-2 12-8 4-5-6 1-9z" fill="currentColor"/><path d="m5 13 6 2 9-9" stroke="#0b2024" stroke-width="1.2" opacity=".3"/></symbol>
+    <symbol id="i-axe" viewBox="0 0 24 24"><path d="m5 21 9.5-11" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M11.5 4.5C14 2 19 2.5 21 5.5c-1.3 2.7-3.8 4.2-6.7 3.9-1.5 1.7-3.7 1.5-4.8-.3-1-1.6-.4-3.4 2-4.6Z" fill="currentColor"/></symbol>
+    <symbol id="i-spear" viewBox="0 0 24 24"><path d="m3 21 14-14M14.5 3.5 20.5 2l-1.5 6-4 1.5-1.5-4Z" fill="currentColor"/><path d="m3 21 2-5" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-fire" viewBox="0 0 24 24"><path d="M12.6 2c.5 4-3 5.1-3 8.6 0 1.3.8 2.2 1.6 2.6-.2-2 1-3.5 2.2-4.6.2 2.1 2.7 3.4 2.7 6.6A6.4 6.4 0 0 1 9 21.5a6.3 6.3 0 0 1-3.6-5.7c0-4.5 4.5-6 5-11.8.7-.9 1.4-1.6 2.2-2Z" fill="currentColor"/><path d="M9.5 21.5c-1.7-2.5-.4-4.4 1.3-6.2.2 2 .9 2.6 1.5 3.6.8 1.3.2 2.3-.4 2.6Z" fill="#0b2024" opacity=".45"/></symbol>
+    <symbol id="i-torch" viewBox="0 0 24 24"><path d="m11 10 6 11" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M11.6 2c.4 2.5-1.6 3.3-1.3 5.4.2 1 .9 1.5 1.5 1.9-.3-1.4.5-2.5 1.4-3.3.2 1.5 1.8 2.4 1.6 4.4-.2 2.3-2 3.8-4.3 3.6-2.1-.2-3.6-1.8-3.5-3.8.2-2.8 2.8-4 4.6-8.2Z" fill="currentColor"/></symbol>
+    <symbol id="i-bag" viewBox="0 0 24 24"><path d="M6 7.5h12l1.5 12.5h-15z" fill="currentColor"/><path d="M9 8V6a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="2" fill="none"/><path d="M9.5 13h5M9.5 16h3" stroke="#0b2024" stroke-width="1.4" opacity=".35"/></symbol>
+    <symbol id="i-hammer" viewBox="0 0 24 24"><path d="m9.5 10 9 11" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="m6.5 4 5 5-3 3-5-5zM11 3l3-2 7 7-2 3z" fill="currentColor"/></symbol>
+    <symbol id="i-paw" viewBox="0 0 24 24"><ellipse cx="7" cy="9" rx="2.4" ry="3" fill="currentColor"/><ellipse cx="12" cy="7" rx="2.4" ry="3" fill="currentColor"/><ellipse cx="17" cy="9" rx="2.4" ry="3" fill="currentColor"/><path d="M12 11c4 0 6 3 5.2 6.2-.6 2.3-3 2.5-5.2 1.6-2.2.9-4.6.7-5.2-1.6C6 14 8 11 12 11Z" fill="currentColor"/></symbol>
+    <symbol id="i-jump" viewBox="0 0 24 24"><path d="M12 20V5m0 0-5 5m5-5 5 5" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 21h14" stroke="currentColor" stroke-width="1.5" opacity=".4"/></symbol>
+    <symbol id="i-run" viewBox="0 0 24 24"><path d="M5 5h5l-3 7h5l-4 7" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 5h5l-3 7h5l-4 7" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".5"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><rect x="3" y="6.5" width="18" height="13" rx="2.5" fill="currentColor"/><path d="m9 6 1.2-2h3.6L15 6" fill="currentColor"/><circle cx="12" cy="13" r="4" fill="#0b2024"/><circle cx="12" cy="13" r="2" fill="currentColor"/></symbol>
+    <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a9 9 0 0 1 0 12" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="i-muted" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="m16 9 5 5m0-5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Zm8.3 3.8c0 .5 0 1-.1 1.5l2 1.6-1.9 3.3-2.4-.9c-.8.7-1.6 1.2-2.6 1.5L15 21.5h-6l-.4-2.5c-1-.3-1.8-.8-2.6-1.5l-2.4.9-1.9-3.3 2-1.6a9 9 0 0 1 0-3L1.7 8.9l1.9-3.3 2.4.9c.8-.7 1.6-1.2 2.6-1.5L9 2.5h6l.4 2.5c1 .3 1.8.8 2.6 1.5l2.4-.9 1.9 3.3-2 1.6c.1.5.1 1 .1 1.5Z" fill="currentColor"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m5 5 14 14M19 5 5 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-tilt" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="m3 7-1.5 2L3 11m18-4 1.5 2L21 11" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="12" cy="18" r="1" fill="currentColor"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m0 0-5-5m5 5-5 5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<script type="module" src="js/game.js"></script>
+</body>
+</html>
